@@ -29,6 +29,8 @@
 - 🏷️ **Error Classification** - Identifies rejection reasons (SPF, PTR, DMARC, Spam)
 - 🌐 **HTML Support** - Send emails with HTML body content
 - 📄 **File Input** - Read email body from external files
+- 🔐 **DKIM Signing** - Sign emails with custom DKIM keys
+- 🎭 **Realistic Headers** - Anti-spam headers (Reply-To, Organization, List-Unsubscribe)
 - 📊 **Multiple Outputs** - Text, JSON, and quiet output modes
 - 🐛 **Verbose Mode** - Debug SMTP communication in real-time
 
@@ -98,6 +100,25 @@ spfspoofer \
 | `--to-name NAME` | - | Recipient display name |
 | `--html` | `false` | Send body as HTML instead of plain text |
 
+#### Realistic Headers (Anti-Spam)
+
+| Argument | Default | Description |
+|----------|---------|-------------|
+| `--reply-to EMAIL` | - | Reply-To email address |
+| `--organization NAME` | - | Organization name header |
+| `--priority LEVEL` | `normal` | Email priority: `high`, `normal`, `low` |
+| `--mailer STRING` | random | X-Mailer header (default: random realistic client) |
+| `--list-unsubscribe URL` | - | List-Unsubscribe URL (helps avoid spam filters) |
+| `--header NAME:VALUE` | - | Custom header (can be used multiple times) |
+
+#### DKIM Signing
+
+| Argument | Description |
+|----------|-------------|
+| `--dkim-key FILE` | Path to DKIM private key file (PEM format) |
+| `--dkim-selector SELECTOR` | DKIM selector (e.g., `selector1`, `default`) |
+| `--dkim-domain DOMAIN` | DKIM domain (defaults to sender domain) |
+
 #### Output Options
 
 | Argument | Default | Description |
@@ -118,6 +139,58 @@ spfspoofer \
 ### Examples
 
 <details>
+<summary><b>Basic spoofing test</b></summary>
+
+```bash
+spfspoofer \
+  --from ceo@target-company.com \
+  --to employee@target-company.com \
+  --subject "Urgent: Wire Transfer" \
+  --body "Please transfer $50,000 to account XXX"
+```
+
+</details>
+
+<details>
+<summary><b>Realistic email with anti-spam headers</b></summary>
+
+```bash
+spfspoofer \
+  --from noreply@company.com \
+  --from-name "Company Name" \
+  --to user@example.com \
+  --subject "Important Update" \
+  --body-file email.html \
+  --html \
+  --reply-to support@company.com \
+  --organization "Company Inc." \
+  --list-unsubscribe "https://company.com/unsubscribe"
+```
+
+</details>
+
+<details>
+<summary><b>With DKIM signing</b></summary>
+
+```bash
+# Generate a DKIM key pair
+openssl genrsa -out dkim_private.pem 2048
+
+# Send with DKIM signature
+spfspoofer \
+  --from sender@domain.com \
+  --to recipient@example.com \
+  --subject "DKIM Test" \
+  --body "Testing DKIM signature" \
+  --dkim-key dkim_private.pem \
+  --dkim-selector "selector1"
+```
+
+> ⚠️ DKIM will show `permerror` unless you publish the public key in DNS
+
+</details>
+
+<details>
 <summary><b>DNS-only mode</b> - Check records without sending</summary>
 
 ```bash
@@ -132,59 +205,24 @@ spfspoofer \
 </details>
 
 <details>
-<summary><b>HTML email from file</b></summary>
-
-```bash
-spfspoofer \
-  --from test@domain.com \
-  --to user@example.com \
-  --subject "HTML Test" \
-  --body-file email.html \
-  --html
-```
-
-</details>
-
-<details>
-<summary><b>JSON output</b> - For automation/scripts</summary>
-
-```bash
-spfspoofer \
-  --from test@domain.com \
-  --to user@example.com \
-  --subject "Test" \
-  --body "Test" \
-  --format json
-```
-
-</details>
-
-<details>
-<summary><b>Verbose mode</b> - Debug SMTP communication</summary>
-
-```bash
-spfspoofer \
-  --from test@domain.com \
-  --to user@example.com \
-  --subject "Test" \
-  --body "Test" \
-  --verbose
-```
-
-</details>
-
-<details>
 <summary><b>Full example with all options</b></summary>
 
 ```bash
 spfspoofer \
-  --from "sender@domain.com" \
-  --from-name "Sender Name" \
+  --from "noreply@company.com" \
+  --from-name "Company Name" \
   --to "recipient@example.com" \
-  --to-name "Recipient Name" \
+  --to-name "John Doe" \
   --subject "Security Test Email" \
   --body-file template.html \
   --html \
+  --reply-to "support@company.com" \
+  --organization "Company Inc." \
+  --priority high \
+  --list-unsubscribe "https://company.com/unsub" \
+  --header "X-Campaign-ID:test123" \
+  --dkim-key private.pem \
+  --dkim-selector "default" \
   --timeout 60 \
   --verbose
 ```
@@ -215,18 +253,14 @@ spfspoofer/
 │   │   └── output.py          # Console formatting
 │   ├── core/                  # Core business logic
 │   │   ├── dns.py             # DNS resolution (MX, SPF, DMARC)
-│   │   └── sender.py          # Direct SMTP sending
+│   │   └── sender.py          # Direct SMTP sending + DKIM
 │   ├── models/                # Data models
 │   │   ├── config.py          # EmailConfig
 │   │   └── result.py          # SendResult, DNSInfo
 │   └── utils/                 # Utilities
 │       ├── constants.py       # Enums and constants
 │       └── exceptions.py      # Custom exceptions
-├── tests/                     # Test suite (50 tests)
-│   ├── test_constants.py
-│   ├── test_dns.py
-│   ├── test_models.py
-│   └── test_sender.py
+├── tests/                     # Test suite
 ├── pyproject.toml
 ├── LICENSE
 └── README.md
@@ -238,10 +272,12 @@ spfspoofer/
 
 ```
 1. DNS Resolution     →  Fetch MX, SPF, DMARC records
-2. SMTP Connection    →  Connect to MX server on port 25
-3. TLS Upgrade        →  STARTTLS if available
-4. Send Email         →  Deliver without authentication
-5. Analyze Response   →  Classify success/rejection
+2. Build Message      →  Construct email with realistic headers
+3. DKIM Signing       →  Sign message if key provided
+4. SMTP Connection    →  Connect to MX server on port 25
+5. TLS Upgrade        →  STARTTLS if available
+6. Send Email         →  Deliver without authentication
+7. Analyze Response   →  Classify success/rejection
 ```
 
 ### SMTP Flow
@@ -261,10 +297,24 @@ Client                          MX Server
   │──────── RCPT TO ───────────────►│
   │◄──────── 250 OK ────────────────│
   │──────── DATA ──────────────────►│
-  │──────── [Message] ─────────────►│
+  │──────── [Message + DKIM] ──────►│
   │◄──────── 250 OK / 550 Reject ───│
   │──────── QUIT ──────────────────►│
 ```
+
+### Email Headers Added
+
+| Header | Purpose |
+|--------|---------|
+| `From`, `To`, `Subject` | Standard email headers |
+| `Date`, `Message-ID` | Timestamp and unique identifier |
+| `MIME-Version` | Required for proper email formatting |
+| `Reply-To` | Legitimate reply address |
+| `Organization` | Sender organization name |
+| `X-Mailer` | Email client identifier (randomized) |
+| `X-Priority`, `Importance` | Email priority flags |
+| `List-Unsubscribe` | One-click unsubscribe (anti-spam) |
+| `DKIM-Signature` | Cryptographic signature (if key provided) |
 
 ### Error Codes
 
@@ -273,7 +323,7 @@ Client                          MX Server
 | `SUCCESS` | 250 | Email accepted |
 | `SPF_FAIL` | 550 / 5.7.1 | SPF validation failed |
 | `NO_PTR_RECORD` | 550 / 5.7.25 | Missing reverse DNS |
-| `DMARC_FAIL` | 550 | DMARC policy rejection |
+| `DMARC_FAIL` | 550 / 5.7.26 | DMARC policy rejection |
 | `SPAM_DETECTED` | 550 / 5.7.0 | Spam classification |
 | `AUTH_REQUIRED` | 530 | Authentication required |
 | `TIMEOUT` | - | Connection timeout |
@@ -290,6 +340,7 @@ Client                          MX Server
 
 - ✅ **SPF Validation** - Verify SPF records block unauthorized senders
 - ✅ **DMARC Testing** - Test DMARC policies before enforcement
+- ✅ **DKIM Verification** - Test DKIM signature validation
 - ✅ **Security Audits** - Assess email authentication posture
 - ✅ **Penetration Testing** - Authorized email security assessments
 - ✅ **Configuration Verification** - Confirm DNS records are working
@@ -302,6 +353,7 @@ For more information and support:
 - 🐛 **Issues**: [Create an issue on GitHub](https://github.com/SmookeyDev/spfspoofer/issues)
 - 💡 **Feature Requests**: Submit via GitHub issues
 - 📚 **SPF Documentation**: [RFC 7208](https://tools.ietf.org/html/rfc7208)
+- 📚 **DKIM Documentation**: [RFC 6376](https://tools.ietf.org/html/rfc6376)
 - 📚 **DMARC Documentation**: [RFC 7489](https://tools.ietf.org/html/rfc7489)
 
 ## 📄 License

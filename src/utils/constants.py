@@ -32,6 +32,30 @@ class OutputFormat(str, Enum):
     QUIET = "quiet"
 
 
+class Priority(str, Enum):
+    """Email priority levels."""
+
+    HIGH = "high"
+    NORMAL = "normal"
+    LOW = "low"
+
+
+# Realistic mailer strings (X-Mailer header)
+REALISTIC_MAILERS = [
+    "Microsoft Outlook 16.0",
+    "Mozilla Thunderbird 115.0",
+    "Apple Mail (2.3774.200.91)",
+    "Gmail",
+    "Yahoo Mail/1.0",
+]
+
+# Priority header values
+PRIORITY_VALUES = {
+    Priority.HIGH: {"X-Priority": "1", "X-MSMail-Priority": "High", "Importance": "High"},
+    Priority.NORMAL: {"X-Priority": "3", "X-MSMail-Priority": "Normal", "Importance": "Normal"},
+    Priority.LOW: {"X-Priority": "5", "X-MSMail-Priority": "Low", "Importance": "Low"},
+}
+
 # Default SMTP ports
 SMTP_PORT = 25
 SMTP_SUBMISSION_PORT = 587

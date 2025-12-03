@@ -1,17 +1,25 @@
 """Direct email sending module for SPF testing."""
 
+import random
 import smtplib
 import socket
 import time
-from datetime import datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from email.utils import formataddr, formatdate
+from email.utils import formataddr, formatdate, make_msgid
+
+import dkim
 
 from src.core.dns import get_dmarc_record, get_mx_records, get_spf_record
 from src.models.config import EmailConfig
 from src.models.result import SendResult
-from src.utils.constants import DEFAULT_TIMEOUT, USER_AGENT, ErrorType
+from src.utils.constants import (
+    DEFAULT_TIMEOUT,
+    PRIORITY_VALUES,
+    REALISTIC_MAILERS,
+    ErrorType,
+    Priority,
+)
 
 
 def get_public_ip() -> str:
@@ -41,7 +49,7 @@ def get_public_ip() -> str:
 
 def build_message(config: EmailConfig) -> MIMEMultipart:
     """
-    Build the email message.
+    Build a realistic email message with proper headers.
 
     Args:
         config: Email configuration.
@@ -51,7 +59,7 @@ def build_message(config: EmailConfig) -> MIMEMultipart:
     """
     msg = MIMEMultipart("alternative")
 
-    # Main headers
+    # === Essential Headers ===
     if config.from_name:
         msg["From"] = formataddr((config.from_name, config.from_email))
     else:
@@ -63,18 +71,94 @@ def build_message(config: EmailConfig) -> MIMEMultipart:
         msg["To"] = config.to_email
 
     msg["Subject"] = config.subject
-    msg["Date"] = formatdate(localtime=True)
-    msg["Message-ID"] = (
-        f"<{datetime.now().strftime('%Y%m%d%H%M%S.%f')}.spf-test@{config.from_domain}>"
-    )
-    msg["X-Mailer"] = USER_AGENT
 
-    # Body
-    content_type = "html" if config.html else "plain"
-    body_part = MIMEText(config.body, content_type, "utf-8")
-    msg.attach(body_part)
+    # === Date & Message-ID (realistic format) ===
+    msg["Date"] = formatdate(localtime=True)
+    msg["Message-ID"] = make_msgid(domain=config.from_domain)
+
+    # === MIME Version (required for proper emails) ===
+    msg["MIME-Version"] = "1.0"
+
+    # === Reply-To ===
+    if config.reply_to:
+        msg["Reply-To"] = config.reply_to
+
+    # === Organization ===
+    if config.organization:
+        msg["Organization"] = config.organization
+
+    # === X-Mailer (realistic or custom) ===
+    if config.mailer:
+        msg["X-Mailer"] = config.mailer
+    else:
+        msg["X-Mailer"] = random.choice(REALISTIC_MAILERS)
+
+    # === Priority Headers ===
+    if config.priority != Priority.NORMAL:
+        priority_headers = PRIORITY_VALUES.get(config.priority, {})
+        for header, value in priority_headers.items():
+            msg[header] = value
+
+    # === List-Unsubscribe (important for avoiding spam) ===
+    if config.list_unsubscribe:
+        msg["List-Unsubscribe"] = f"<{config.list_unsubscribe}>"
+        msg["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click"
+
+    # === Custom Headers ===
+    for header, value in config.custom_headers.items():
+        msg[header] = value
+
+    # === Body Content ===
+    if config.html:
+        # For HTML emails, include both plain text and HTML versions
+        plain_text = "This email requires HTML support to view properly."
+        msg.attach(MIMEText(plain_text, "plain", "utf-8"))
+        msg.attach(MIMEText(config.body, "html", "utf-8"))
+    else:
+        msg.attach(MIMEText(config.body, "plain", "utf-8"))
 
     return msg
+
+
+def sign_with_dkim(message: str, config: EmailConfig) -> str:
+    """
+    Sign an email message with DKIM.
+
+    Args:
+        message: The email message as string.
+        config: Email configuration with DKIM settings.
+
+    Returns:
+        The signed email message as string.
+    """
+    if not config.dkim_key or not config.dkim_selector:
+        return message
+
+    # Read private key
+    private_key = config.dkim_key.read_bytes()
+
+    # Domain for DKIM (defaults to from_domain)
+    domain = config.dkim_domain or config.from_domain
+
+    # Sign the message
+    signature = dkim.sign(
+        message=message.encode("utf-8"),
+        selector=config.dkim_selector.encode("utf-8"),
+        domain=domain.encode("utf-8"),
+        privkey=private_key,
+        include_headers=[
+            b"From",
+            b"To",
+            b"Subject",
+            b"Date",
+            b"Message-ID",
+            b"MIME-Version",
+            b"Content-Type",
+        ],
+    )
+
+    # Prepend DKIM signature to message
+    return signature.decode("utf-8") + message
 
 
 def classify_smtp_error(code: int, message: str) -> ErrorType:
@@ -135,7 +219,7 @@ def send_direct(
         verbose: If True, show SMTP debug output.
 
     Returns:
-        TestResult with the sending result.
+        SendResult with the sending result.
     """
     start_time = time.time()
     sender_ip = get_public_ip()
@@ -156,6 +240,12 @@ def send_direct(
         )
 
     msg = build_message(config)
+    
+    # Convert to string and sign with DKIM if configured
+    msg_string = msg.as_string()
+    if config.dkim_key:
+        msg_string = sign_with_dkim(msg_string, config)
+    
     last_error: str | None = None
     last_error_type = ErrorType.ALL_MX_FAILED
 
@@ -179,7 +269,7 @@ def send_direct(
                 pass  # TLS is optional
 
             # Send
-            server.sendmail(config.from_email, [config.to_email], msg.as_string())
+            server.sendmail(config.from_email, [config.to_email], msg_string)
             server.quit()
 
             return SendResult(
@@ -261,7 +351,7 @@ def send_direct(
             continue
 
     # All MX servers failed
-    return TestResult(
+    return SendResult(
         success=False,
         error_type=last_error_type,
         sender_ip=sender_ip,

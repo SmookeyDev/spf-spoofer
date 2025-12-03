@@ -7,7 +7,7 @@ from pathlib import Path
 from src.cli.output import Console, print_dns_info, print_email_details, print_result
 from src.core.sender import send_direct
 from src.models.config import EmailConfig
-from src.utils.constants import VERSION, OutputFormat
+from src.utils.constants import VERSION, OutputFormat, Priority
 from src.utils.exceptions import ValidationError
 
 
@@ -21,13 +21,20 @@ def parse_args() -> argparse.Namespace:
 Examples:
   %(prog)s --from sender@domain.com --to recipient@domain.com --subject "Test" --body "Hello"
   %(prog)s --from sender@domain.com --to recipient@domain.com --subject "Test" --body-file email.html --html
-  %(prog)s --from sender@domain.com --to recipient@domain.com --dns-only
-  %(prog)s --from sender@domain.com --to recipient@domain.com --format json
+  %(prog)s --from sender@domain.com --to recipient@domain.com --subject "Test" --body "Hi" --reply-to reply@domain.com
+  %(prog)s --from sender@domain.com --to recipient@domain.com --subject "Test" --body "Hi" --organization "Company Inc"
+
+Realistic headers (anti-spam):
+  --reply-to         Reply-To address (looks more legitimate)
+  --organization     Organization name
+  --mailer           Custom X-Mailer (default: random realistic client)
+  --list-unsubscribe Unsubscribe URL (helps avoid spam filters)
+  --header           Custom headers (e.g., --header "X-Campaign:test123")
 
 Notes:
   - Emails are sent directly to the recipient's MX server on port 25
   - No SMTP authentication is used (simulates external server sending)
-  - Use this to test if SPF/DKIM/DMARC configurations are working correctly
+  - Use realistic headers to test if emails pass spam filters
         """,
     )
 
@@ -85,6 +92,71 @@ Notes:
         default="",
         metavar="NAME",
         help="Recipient display name",
+    )
+
+    # Realistic headers (to avoid spam filters)
+    headers = parser.add_argument_group("realistic headers (anti-spam)")
+    headers.add_argument(
+        "--reply-to",
+        dest="reply_to",
+        default="",
+        metavar="EMAIL",
+        help="Reply-To email address",
+    )
+    headers.add_argument(
+        "--organization",
+        default="",
+        metavar="NAME",
+        help="Organization name header",
+    )
+    headers.add_argument(
+        "--priority",
+        choices=["high", "normal", "low"],
+        default="normal",
+        help="Email priority (default: normal)",
+    )
+    headers.add_argument(
+        "--mailer",
+        default="",
+        metavar="STRING",
+        help="X-Mailer header (default: random realistic)",
+    )
+    headers.add_argument(
+        "--list-unsubscribe",
+        dest="list_unsubscribe",
+        default="",
+        metavar="URL",
+        help="List-Unsubscribe URL (helps avoid spam)",
+    )
+    headers.add_argument(
+        "--header",
+        dest="custom_headers",
+        action="append",
+        metavar="NAME:VALUE",
+        help="Custom header (can be used multiple times)",
+    )
+
+    # DKIM signing
+    dkim_group = parser.add_argument_group("DKIM signing")
+    dkim_group.add_argument(
+        "--dkim-key",
+        dest="dkim_key",
+        metavar="FILE",
+        help="Path to DKIM private key file (PEM format)",
+    )
+    dkim_group.add_argument(
+        "--dkim-selector",
+        dest="dkim_selector",
+        default="",
+        metavar="SELECTOR",
+        help="DKIM selector (e.g., 'selector1', 'default')",
+    )
+    dkim_group.add_argument(
+        "--dkim-domain",
+        dest="dkim_domain",
+        default="",
+        metavar="DOMAIN",
+        help="DKIM domain (defaults to sender domain)",
     )
 
     # Execution options
@@ -154,6 +226,19 @@ def main() -> None:
         console.error("Either --body or --body-file is required")
         sys.exit(1)
 
+    # Parse custom headers
+    custom_headers: dict[str, str] = {}
+    if args.custom_headers:
+        for header in args.custom_headers:
+            if ":" not in header:
+                console.error(f"Invalid header format: {header} (expected NAME:VALUE)")
+                sys.exit(1)
+            name, value = header.split(":", 1)
+            custom_headers[name.strip()] = value.strip()
+
+    # Parse DKIM key path
+    dkim_key = Path(args.dkim_key) if args.dkim_key else None
+
     # Validate and create configuration
     try:
         config = EmailConfig(
@@ -164,6 +249,15 @@ def main() -> None:
             subject=args.subject,
             body=body,
             html=args.html,
+            reply_to=args.reply_to,
+            organization=args.organization,
+            priority=Priority(args.priority),
+            mailer=args.mailer,
+            list_unsubscribe=args.list_unsubscribe,
+            custom_headers=custom_headers,
+            dkim_key=dkim_key,
+            dkim_selector=args.dkim_selector,
+            dkim_domain=args.dkim_domain,
         )
     except ValidationError as e:
         console.error(str(e))
