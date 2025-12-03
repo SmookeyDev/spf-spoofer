@@ -1,3 +1,7 @@
+# DKIM private keys (NEVER commit these!)
+*.pem
+dkim_private.pem
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
