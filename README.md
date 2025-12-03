@@ -2,19 +2,16 @@
 
 🔓 Test email authentication by sending spoofed emails directly to MX servers.
 
-![License](https://img.shields.io/badge/license-MIT-blue.svg)
-![Python](https://img.shields.io/badge/python-3.14+-brightgreen.svg)
-![Platform](https://img.shields.io/badge/platform-linux%20%7C%20macos%20%7C%20windows-lightgrey.svg)
-![Status](https://img.shields.io/badge/status-active-success.svg)
-
----
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/python-3.14+-brightgreen.svg)](https://python.org)
+[![Platform](https://img.shields.io/badge/platform-linux%20%7C%20macos%20%7C%20windows-lightgrey.svg)]()
 
 ## 📝 Table of Contents
 
 - [🧐 About](#-about)
 - [⚡ Features](#-features)
 - [💻 Installation](#-installation)
-- [🚀 How to Use](#-how-to-use)
+- [🚀 Usage](#-usage)
 - [📁 Project Structure](#-project-structure)
 - [🔧 Technical Details](#-technical-details)
 - [🔒 Security Considerations](#-security-considerations)
@@ -23,36 +20,19 @@
 
 ## 🧐 About
 
-This repository contains an **SPF Spoofer** tool developed by **SmookeyDev**. The tool allows you to test email authentication configurations (SPF/DKIM/DMARC) by sending emails directly to destination MX servers, bypassing any relay SMTP. This simulates how an attacker would attempt to spoof emails from your domain.
-
-**Why use this?**
-- Verify that your SPF records are correctly blocking unauthorized senders
-- Test DMARC policies before enforcement
-- Audit email security configurations
-- Validate that spoofed emails are properly rejected
+**SPF Spoofer** is a security testing tool developed by **SmookeyDev** that sends emails directly to destination MX servers, bypassing any relay SMTP. This simulates how an attacker would attempt to spoof emails from your domain, allowing you to verify that your SPF/DKIM/DMARC configurations are properly blocking unauthorized senders.
 
 ## ⚡ Features
 
-| Feature | Status | Description |
-|---------|--------|-------------|
-| Direct MX Sending | ✅ | Sends emails directly to recipient's MX server |
-| SPF Record Lookup | ✅ | Automatically fetches and displays SPF records |
-| DMARC Record Lookup | ✅ | Checks DMARC policy configuration |
-| MX Resolution | ✅ | Resolves and prioritizes MX servers |
-| Error Classification | ✅ | Identifies specific rejection reasons (SPF, PTR, DMARC) |
-| HTML Support | ✅ | Send emails with HTML body |
-| File Input | ✅ | Read email body from file |
-| Multiple Output Formats | ✅ | Text, JSON, and quiet modes |
-| Colored Output | ✅ | Beautiful terminal output with colors |
-| Timeout Configuration | ✅ | Configurable SMTP timeouts |
-| Verbose Mode | ✅ | Debug SMTP communication |
+- 📡 **Direct MX Sending** - Sends emails directly to recipient's MX server on port 25
+- 🔍 **DNS Lookup** - Automatically fetches SPF, DMARC, and MX records
+- 🏷️ **Error Classification** - Identifies rejection reasons (SPF, PTR, DMARC, Spam)
+- 🌐 **HTML Support** - Send emails with HTML body content
+- 📄 **File Input** - Read email body from external files
+- 📊 **Multiple Outputs** - Text, JSON, and quiet output modes
+- 🐛 **Verbose Mode** - Debug SMTP communication in real-time
 
 ## 💻 Installation
-
-### Prerequisites
-
-- Python 3.14 or higher
-- [uv](https://docs.astral.sh/uv/) package manager (recommended)
 
 ### Quick Start
 
@@ -61,69 +41,85 @@ This repository contains an **SPF Spoofer** tool developed by **SmookeyDev**. Th
 git clone https://github.com/SmookeyDev/spfspoofer.git
 cd spfspoofer
 
-# Install dependencies
+# Install with uv (recommended)
 uv sync
 
-# Run the tool
+# Run
 uv run spfspoofer --help
 ```
 
-### Alternative Installation (pip)
+### Alternative Installation
 
 ```bash
-# Clone and install
-git clone https://github.com/SmookeyDev/spfspoofer.git
-cd spfspoofer
+# Using pip
 pip install -e .
-
-# Run
 spfspoofer --help
 ```
 
-### Dependencies Overview
+### Requirements
 
-The project uses the following Python packages:
+- Python 3.14 or higher
+- [uv](https://docs.astral.sh/uv/) package manager (recommended)
 
-- **dnspython>=2.4.0** - DNS resolution for MX, SPF, and DMARC records
+## 🚀 Usage
 
-All dependencies are automatically installed via `uv sync` or `pip install`.
-
-## 🚀 How to Use
-
-### Basic Usage
+### Basic Example
 
 ```bash
 spfspoofer \
   --from sender@target-domain.com \
   --to recipient@example.com \
   --subject "Security Test" \
-  --body "This is a spoofing test email."
+  --body "This is a spoofing test."
 ```
 
-### Command Options
+### Command Reference
 
-| Option | Required | Description |
-|--------|----------|-------------|
-| `--from EMAIL` | ✅ | Sender email address (the domain to test) |
-| `--to EMAIL` | ✅ | Recipient email address |
-| `--subject TEXT` | ✅ | Email subject |
-| `--body TEXT` | ❌* | Email body content |
-| `--body-file FILE` | ❌* | Read email body from file |
-| `--html` | ❌ | Send body as HTML instead of plain text |
-| `--from-name NAME` | ❌ | Sender display name |
-| `--to-name NAME` | ❌ | Recipient display name |
-| `--dns-only` | ❌ | Only show DNS info without sending |
-| `--timeout SEC` | ❌ | SMTP timeout in seconds (default: 30) |
-| `--format FORMAT` | ❌ | Output format: text, json, quiet |
-| `--no-color` | ❌ | Disable colored output |
-| `-v, --verbose` | ❌ | Show SMTP debug output |
-| `--version` | ❌ | Show version number |
+#### Required Arguments
 
-> *Either `--body` or `--body-file` is required.
+| Argument | Description |
+|----------|-------------|
+| `--from EMAIL` | Sender email address (domain to test) |
+| `--to EMAIL` | Recipient email address |
+| `--subject TEXT` | Email subject line |
+
+#### Body Content (one required)
+
+| Argument | Description |
+|----------|-------------|
+| `--body TEXT` | Email body as inline text |
+| `--body-file FILE` | Read email body from file |
+
+#### Email Options
+
+| Argument | Default | Description |
+|----------|---------|-------------|
+| `--from-name NAME` | - | Sender display name |
+| `--to-name NAME` | - | Recipient display name |
+| `--html` | `false` | Send body as HTML instead of plain text |
+
+#### Output Options
+
+| Argument | Default | Description |
+|----------|---------|-------------|
+| `--format FORMAT` | `text` | Output format: `text`, `json`, `quiet` |
+| `--no-color` | `false` | Disable colored terminal output |
+| `-v, --verbose` | `false` | Show SMTP debug communication |
+
+#### Execution Options
+
+| Argument | Default | Description |
+|----------|---------|-------------|
+| `--dns-only` | `false` | Only show DNS info, don't send email |
+| `--timeout SEC` | `30` | SMTP connection timeout in seconds |
+| `--version` | - | Show version and exit |
+| `-h, --help` | - | Show help message and exit |
 
 ### Examples
 
-**DNS-only mode (no email sent):**
+<details>
+<summary><b>DNS-only mode</b> - Check records without sending</summary>
+
 ```bash
 spfspoofer \
   --from test@domain.com \
@@ -133,7 +129,25 @@ spfspoofer \
   --dns-only
 ```
 
-**JSON output for automation:**
+</details>
+
+<details>
+<summary><b>HTML email from file</b></summary>
+
+```bash
+spfspoofer \
+  --from test@domain.com \
+  --to user@example.com \
+  --subject "HTML Test" \
+  --body-file email.html \
+  --html
+```
+
+</details>
+
+<details>
+<summary><b>JSON output</b> - For automation/scripts</summary>
+
 ```bash
 spfspoofer \
   --from test@domain.com \
@@ -143,157 +157,124 @@ spfspoofer \
   --format json
 ```
 
-**HTML email from file:**
-```bash
-spfspoofer \
-  --from test@domain.com \
-  --to user@example.com \
-  --subject "Test" \
-  --body-file email.html \
-  --html
-```
+</details>
 
-**Verbose mode for debugging:**
+<details>
+<summary><b>Verbose mode</b> - Debug SMTP communication</summary>
+
 ```bash
 spfspoofer \
   --from test@domain.com \
   --to user@example.com \
   --subject "Test" \
   --body "Test" \
-  -v
+  --verbose
 ```
+
+</details>
+
+<details>
+<summary><b>Full example with all options</b></summary>
+
+```bash
+spfspoofer \
+  --from "sender@domain.com" \
+  --from-name "Sender Name" \
+  --to "recipient@example.com" \
+  --to-name "Recipient Name" \
+  --subject "Security Test Email" \
+  --body-file template.html \
+  --html \
+  --timeout 60 \
+  --verbose
+```
+
+</details>
 
 ### Understanding Results
 
-**✅ Email Sent Successfully:**
-- The MX server accepted the email
-- Check recipient's inbox/spam folder
-- Examine `Authentication-Results` headers
+| Result | Meaning |
+|--------|---------|
+| ✅ **Email Sent** | MX server accepted - check inbox/spam and headers |
+| ❌ **SPF_FAIL** | IP not authorized in SPF record |
+| ❌ **NO_PTR_RECORD** | Missing reverse DNS (PTR) |
+| ❌ **DMARC_FAIL** | DMARC policy rejected the email |
+| ❌ **SPAM_DETECTED** | Classified as spam by server |
+| ❌ **RECIPIENT_REFUSED** | Invalid or blocked recipient |
 
-**❌ Sending Blocked:**
-- `SPF_FAIL` - IP not authorized in SPF record ✓
-- `NO_PTR_RECORD` - Missing reverse DNS ✓
-- `DMARC_FAIL` - DMARC policy rejected email ✓
-- `SPAM_DETECTED` - Classified as spam
-- `RECIPIENT_REFUSED` - Invalid recipient
-
-> **Note:** Blocked results often indicate that security is working correctly!
+> 💡 **Tip:** Blocked results often mean security is working correctly!
 
 ## 📁 Project Structure
 
 ```
 spfspoofer/
 ├── src/
-│   ├── __init__.py            # Package exports
-│   │
+│   ├── __init__.py
 │   ├── cli/                   # Command-line interface
-│   │   ├── __init__.py
-│   │   ├── main.py            # CLI entry point
+│   │   ├── main.py            # Entry point & argument parsing
 │   │   └── output.py          # Console formatting
-│   │
 │   ├── core/                  # Core business logic
-│   │   ├── __init__.py
 │   │   ├── dns.py             # DNS resolution (MX, SPF, DMARC)
 │   │   └── sender.py          # Direct SMTP sending
-│   │
 │   ├── models/                # Data models
-│   │   ├── __init__.py
-│   │   ├── config.py          # EmailConfig model
-│   │   └── result.py          # TestResult, DNSInfo models
-│   │
+│   │   ├── config.py          # EmailConfig
+│   │   └── result.py          # SendResult, DNSInfo
 │   └── utils/                 # Utilities
-│       ├── __init__.py
-│       ├── constants.py       # Constants and enums
+│       ├── constants.py       # Enums and constants
 │       └── exceptions.py      # Custom exceptions
-│
-├── tests/                     # Test suite
-│   └── __init__.py
-│
-├── .gitignore
+├── tests/                     # Test suite (50 tests)
+│   ├── test_constants.py
+│   ├── test_dns.py
+│   ├── test_models.py
+│   └── test_sender.py
+├── pyproject.toml
 ├── LICENSE
-├── README.md
-└── pyproject.toml
+└── README.md
 ```
-
-### 🏗️ Module Overview
-
-#### `cli/` Package
-- **`main.py`**: Command-line argument parsing and main entry point
-- **`output.py`**: Console output formatting with colors and structured display
-
-#### `core/` Package
-- **`dns.py`**: DNS resolution utilities
-  - MX record lookup with priority sorting
-  - SPF record extraction from TXT records
-  - DMARC record lookup at `_dmarc.domain`
-- **`sender.py`**: Email sending logic
-  - Direct SMTP connection to MX servers
-  - STARTTLS support
-  - Error classification and handling
-
-#### `models/` Package
-- **`config.py`**: Email configuration with validation
-- **`result.py`**: Test result and DNS information models
-
-#### `utils/` Package
-- **`constants.py`**: Error types, output formats, timeouts
-- **`exceptions.py`**: Custom exception classes
 
 ## 🔧 Technical Details
 
 ### How It Works
 
-1. **DNS Resolution**
-   - Resolves MX records for recipient's domain
-   - Fetches SPF and DMARC records for sender's domain
-   - Determines sender's public IP address
-
-2. **Direct SMTP Connection**
-   - Connects directly to MX server on port 25
-   - Sends EHLO with local hostname
-   - Attempts STARTTLS if available
-   - Delivers email without authentication
-
-3. **Error Analysis**
-   - Parses SMTP response codes
-   - Classifies rejection reasons
-   - Provides actionable explanations
+```
+1. DNS Resolution     →  Fetch MX, SPF, DMARC records
+2. SMTP Connection    →  Connect to MX server on port 25
+3. TLS Upgrade        →  STARTTLS if available
+4. Send Email         →  Deliver without authentication
+5. Analyze Response   →  Classify success/rejection
+```
 
 ### SMTP Flow
 
 ```
 Client                          MX Server
-  |                                 |
-  |-------- TCP Connect :25 ------->|
-  |<-------- 220 Welcome -----------|
-  |-------- EHLO hostname --------->|
-  |<-------- 250 Extensions --------|
-  |-------- STARTTLS -------------->|
-  |<-------- 220 Ready -------------|
-  |======== TLS Handshake =========|
-  |-------- EHLO hostname --------->|
-  |-------- MAIL FROM: ------------>|
-  |<-------- 250 OK ----------------|
-  |-------- RCPT TO: -------------->|
-  |<-------- 250 OK ----------------|
-  |-------- DATA ------------------>|
-  |-------- [Message] ------------->|
-  |-------- . --------------------->|
-  |<-------- 250 OK / 550 Reject ---|
-  |-------- QUIT ------------------>|
+  │                                 │
+  │──────── TCP Connect :25 ───────►│
+  │◄──────── 220 Welcome ───────────│
+  │──────── EHLO hostname ─────────►│
+  │◄──────── 250 Extensions ────────│
+  │──────── STARTTLS ──────────────►│
+  │◄──────── 220 Ready ─────────────│
+  │════════ TLS Handshake ══════════│
+  │──────── MAIL FROM ─────────────►│
+  │◄──────── 250 OK ────────────────│
+  │──────── RCPT TO ───────────────►│
+  │◄──────── 250 OK ────────────────│
+  │──────── DATA ──────────────────►│
+  │──────── [Message] ─────────────►│
+  │◄──────── 250 OK / 550 Reject ───│
+  │──────── QUIT ──────────────────►│
 ```
 
-### Error Types
+### Error Codes
 
-| Error Type | SMTP Code | Description |
-|------------|-----------|-------------|
+| Error Type | SMTP Code | Cause |
+|------------|-----------|-------|
 | `SUCCESS` | 250 | Email accepted |
-| `SPF_FAIL` | 550/5.7.1 | SPF validation failed |
-| `NO_PTR_RECORD` | 550/5.7.25 | Missing reverse DNS |
+| `SPF_FAIL` | 550 / 5.7.1 | SPF validation failed |
+| `NO_PTR_RECORD` | 550 / 5.7.25 | Missing reverse DNS |
 | `DMARC_FAIL` | 550 | DMARC policy rejection |
-| `SPAM_DETECTED` | 550/5.7.0 | Spam classification |
-| `SENDER_REFUSED` | 550 | Sender rejected |
-| `RECIPIENT_REFUSED` | 550 | Invalid recipient |
+| `SPAM_DETECTED` | 550 / 5.7.0 | Spam classification |
 | `AUTH_REQUIRED` | 530 | Authentication required |
 | `TIMEOUT` | - | Connection timeout |
 
@@ -329,5 +310,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-Developed with ❤️ by **SmookeyDev**
-
+<div align="center">
+  <sub>Developed with ❤️ by SmookeyDev</sub>
+</div>
